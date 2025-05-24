@@ -8,11 +8,6 @@ namespace Relay
     public interface IComponent
     {
         /// <summary>
-        /// The component id - used for making sure an entity only has one component of each type.
-        /// </summary>
-        string Id { get; }
-
-        /// <summary>
         /// The component priority - used for deciding in which order the components should handle events.
         /// </summary>
         int Priority { get; }
@@ -82,7 +77,6 @@ namespace Relay
             return registeredEventTypes.Contains(eventType);
         }
 
-        public abstract string Id { get; }
         public abstract int Priority { get; }
 
         /// <summary>

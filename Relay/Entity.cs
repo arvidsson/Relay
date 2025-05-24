@@ -19,9 +19,6 @@ namespace Relay
         /// </summary>
         public World World { get; private set; }
 
-        // TODO: make into component instead
-        public Coord Position { get; set; }
-
         private static uint nextId = 0;
 
         private SimplePriorityQueue<IComponent, int> components = new SimplePriorityQueue<IComponent, int>();
@@ -142,13 +139,13 @@ namespace Relay
         }
 
         /// <summary>
-        /// Gets a component from the entity.
+        /// Gets a component of type T from the entity.
         /// </summary>
-        /// <param name="id">The id of the component to get.</param>
-        /// <returns>The component with the given id, or null if it doesn't exist.</returns>
-        public IComponent GetComponent(string id)
+        /// <typeparam name="T">The type of component to get.</typeparam>
+        /// <returns>The component of type T, or null if it doesn't exist.</returns>
+        public T GetComponent<T>() where T : Component
         {
-            return components.FirstOrDefault(c => c.Id == id);
+            return components.OfType<T>().FirstOrDefault();
         }
 
         #endregion
