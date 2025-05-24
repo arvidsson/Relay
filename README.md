@@ -1,12 +1,12 @@
 # Relay
 
-Relay is a lightweight Entity Component System (ECS) framework for C# that provides a simple and efficient way to manage game objects and their behaviors. It should probably be called an Entity Component Event framework instead, since components contain both data and logic so there are no systems per se.
+Relay is a lightweight Entity Component System (ECS) C# framework that provides a simple way to manage entities and their behaviors. It should probably be called an Entity Component Event framework instead, since components contain both data and logic so there are no systems per se. It's a farily naive implementation, but hopefully a good starting point for implementing specific needs.
 
 Based on [Brian Bucklew's talk about ECS and data-driven engines](https://www.youtube.com/watch?v=U03XXzcThGU).
 
 ## Features
 
-- Entity management with creation and destruction
+- Entity management
 - Component-based architecture
 - Event system for communication between components and entities
 - Tag system for quick entity lookup
@@ -17,7 +17,7 @@ Based on [Brian Bucklew's talk about ECS and data-driven engines](https://www.yo
 
 Add the Relay source files directly into your project.
 
-## Dependencies
+### Dependencies
 
 - [High Speed Priority Queue for C#](https://github.com/BlueRaja/High-Speed-Priority-Queue-for-C-Sharp)
 
@@ -160,7 +160,7 @@ Tags provide a way to quickly find entities by a string identifier.
 
 Groups allow you to organize entities into collections for easier management and querying.
 
-## World
+### World
 
 The World ties everything together. It manages the creation, destruction, tagging and grouping of entities; and firing and handling of events.
 
