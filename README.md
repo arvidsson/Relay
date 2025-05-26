@@ -27,100 +27,104 @@ A firesword that can deal damage to a target, where the damage is modified depen
 
 ```csharp
 var world = new World();
+// setup in which order we process behaviours
+world.BehaviourCategoryOrder = new() { "Damage", "Health" };
+
 var firesword = world.CreateEntity();
-firesword.AddComponent(new Damage { Type = "Physical", Amount = 5 });
-firesword.AddComponent(new FireDamage { Amount = 10 });
+firesword.AddBehaviours(
+    new DamageBehaviour { Type = "Physical", Amount = 5 },
+    new FireDamageBehaviour { Type = "Fire", Amount = 10 }
+);
 
-class Damage : Component
+class DamageBehaviour : Behaviour
 {
-    public override string Id => "Damage";
-    public override int Priority => 10;
-
     public string Type { get; set; }
     public int Amount { get; set; }
 
-    public Damage()
+    public DamageBehaviour()
     {
-        StartListening("MeleeAttack");
+        Category = "Damage";
+        Priority = 10;
+        ListenTo("MeleeAttack");
     }
 
-    public override void HandleEvent(Event ev)
+    public override BehaviourResult HandleEvent(Event ev)
     {
         if (ev.Type == "MeleeAttack")
         {
-            // send a deal damage event to the components on this entity
+            // send a deal damage event to the behaviours on this entity
             var dealDamageEvent = new Event(type: "DealDamage", target: Owner);
             dealDamageEvent["Type"] = Type;
             dealDamageEvent["Amount"] = Amount;
             dealDamageEvent["Target"] = ev.Target;
             Owner.FireEvent(dealDamageEvent);
         }
+        return BehaviourResult.Continue;
     }
 }
 
-class FireDamage : Component
+class FireDamageBehaviour : Behaviour
 {
-    public override string Id => "FireDamage";
-    public override int Priority => 100;
-
+    public string Type { get; set; }
     public int Amount { get; set; }
 
-    public FireDamage()
+    public FireDamageBehaviour()
     {
-        StartListening("DealDamage");
+        Category = "Damage";
+        Priority = 20;
+        ListenTo("DealDamage");
     }
 
-    public override void HandleEvent(Event ev)
+    public override BehaviourResult HandleEvent(Event ev)
     {
         if (ev.Type == "DealDamage")
         {
             // modify damage
-            ev.Data["Type"] += ", Fire";
+            ev.Data["Type"] += (", " + Type);
             ev.Data["Amount"] = (int)ev.Data["Amount"] + Amount;
         }
+        return BehaviourResult.Continue;
     }
 }
 
-class DealDamage : Component
+class DealDamageBehaviour : Behaviour
 {
-    public override string Id => "DealDamage";
-    public override int Priority => 1000;
-
-    public DealDamage()
+    public DealDamageBehaviour()
     {
-        StartListening("DealDamage");
+        Category = "Damage";
+        Priority = 100;
+        ListenTo("DealDamage");
     }
 
-    public override void HandleEvent(Event ev)
+    public override BehaviourResult HandleEvent(Event ev)
     {
         if (ev.Type == "DealDamage")
         {
             // after all damage modifications are done, trigger TakeDamage event
-            var takeDamageEvent = new Event("TakeDamage");
-            takeDamageEvent.Target = (Entity)ev["Target"];
+            var takeDamageEvent = new Event(type: "TakeDamage", target: (Entity)ev["Target"]);
             takeDamageEvent["Type"] = ev["Type"];
             takeDamageEvent["Amount"] = ev["Amount"];
             Owner.FireEvent(takeDamageEvent);
         }
+        return BehaviourResult.Continue;
     }
 }
 
-var target = world.CreateEntity();
-target.AddComponent(new Health { Value = 100 });
+var monster = world.CreateEntity();
+monster.AddBehaviours(new HealthBehaviour { Value = 100 });
 
-class Health : Component
+class HealthBehaviour : Behaviour
 {
-    public override string Id => "Health";
-    public override int Priority => 1000;
-
     public int Value { get; set; }
 
-    public DealDamage()
+    public HealthBehaviour()
     {
-        StartListening("TakeDamage");
+        Category = "Health";
+        Priority = 10;
+        ListenTo("TakeDamage");
     }
 
-    public override void HandleEvent(Event ev)
+    public override BehaviourResult HandleEvent(Event ev)
     {
         if (ev.Type == "TakeDamage")
         {
@@ -128,11 +132,12 @@ class Health : Component
             int damageAmount = (int)ev["Amount"];
             Value -= damageAmount;
         }
+        return BehaviourResult.Continue;
     }
 }
 
 var meleeAttackEvent = new Event(type: "MeleeAttack", target: firesword);
-meleeAttackEvent.Data["Target"] = target;
+meleeAttackEvent.Data["Target"] = monster;
 firesword.FireEvent(meleeAttackEvent);
 
 world.Update();
@@ -142,15 +147,19 @@ world.Update();
 
 ### Entities
 
-Entities are basically just a container for components. They can have a tag and belong to groups.
+Entities are basically just a container for components and behaviours. They can have a tag and belong to groups.
 
 ### Components
 
-Components contain both data and logic, where the logic is mainly how to deal with events.
+Components are pure data.
+
+### Behaviours
+
+Behaviours are mostly just logic, that handles events. A Behaviour belongs to a Category and has a Priority. The behaviours process events in the order of the category and then in the priority order within that category. Set exact category order in the World's BehaviourCategoryOrder.
 
 ### Events
 
-Events are used for communication between components and entities. They can be fired and handled by entities, and the events are propagated through all components that are listening for the specific event types.
+Events are used for communication between behaviours and entities. They can be fired and handled by entities, and the events are propagated through all behaviours that are listening for the specific event types.
 
 ### Tags
 

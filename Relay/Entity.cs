@@ -19,9 +19,10 @@ namespace Relay
         /// </summary>
         public World World { get; private set; }
 
-        private static uint nextId = 0;
+        static uint nextId = 0;
 
-        private SimplePriorityQueue<IComponent, int> components = new SimplePriorityQueue<IComponent, int>();
+        Dictionary<Type, Component> components = new();
+        Dictionary<string, SimplePriorityQueue<Behaviour, int>> behaviours = new();
 
         public Entity(World world)
         {
@@ -60,23 +61,20 @@ namespace Relay
         /// <summary>
         /// Adds a component to the entity.
         /// </summary>
+        /// <typeparam name="T">The type of component to add.</typeparam>
         /// <param name="component">The component to add.</param>
-        public void AddComponent(IComponent component)
+        public void AddComponent<T>(T component) where T : Component
         {
-            if (HasComponent(component))
-                return;
-
-            components.Enqueue(component, component.Priority);
-            component.Init(this);
+            components[component.GetType()] = component;
         }
 
         /// <summary>
         /// Adds multiple components to the entity.
         /// </summary>
         /// <param name="components">The components to add.</param>
-        public void AddComponents(params IComponent[] components)
+        public void AddComponents(params Component[] components)
         {
-            foreach (IComponent component in components)
+            foreach (var component in components)
             {
                 AddComponent(component);
             }
@@ -85,57 +83,20 @@ namespace Relay
         /// <summary>
         /// Removes a component from the entity.
         /// </summary>
-        /// <param name="component">The component to remove.</param>
-        public void RemoveComponent(IComponent component)
+        /// <typeparam name="T">The type of component to remove.</typeparam>
+        public void RemoveComponent<T>() where T : Component
         {
-            if (!HasComponents())
-                return;
-
-            if (!HasComponent(component))
-                return;
-
-            components.Remove(component);
+            components.Remove(typeof(T));
         }
 
         /// <summary>
-        /// Removes multiple components from the entity.
+        /// Checks if the entity has a component of type T.
         /// </summary>
-        /// <param name="components">The components to remove.</param>
-        public void RemoveComponents(params IComponent[] components)
-        {
-            foreach (IComponent component in components)
-            {
-                RemoveComponent(component);
-            }
-        }
-
-        /// <summary>
-        /// Checks if the entity has a component.
-        /// </summary>
-        /// <param name="component">The component to check.</param>
-        /// <returns>True if the entity has the component, false otherwise.</returns> 
-        public bool HasComponent(IComponent component)
-        {
-            return components.Contains(component);
-        }
-
-        /// <summary>
-        /// Checks if the entity has a component with the given id.
-        /// </summary>
-        /// <param name="id">The id of the component to check.</param>
+        /// <typeparam name="T">The type of component to check.</typeparam>
         /// <returns>True if the entity has the component, false otherwise.</returns>
-        public bool HasComponent(string id)
+        public bool HasComponent<T>() where T : Component
         {
-            return components.Any(c => c.Id == id);
-        }
-
-        /// <summary>
-        /// Checks if the entity has any components.
-        /// </summary>
-        /// <returns>True if the entity has any components, false otherwise.</returns>
-        public bool HasComponents()
-        {
-            return components.Count != 0;
+            return components.ContainsKey(typeof(T));
         }
 
         /// <summary>
@@ -145,7 +106,90 @@ namespace Relay
         /// <returns>The component of type T, or null if it doesn't exist.</returns>
         public T GetComponent<T>() where T : Component
         {
-            return components.OfType<T>().FirstOrDefault();
+            components.TryGetValue(typeof(T), out var component);
+            return component as T;
+        }
+
+        #endregion
+
+        #region Behaviours
+
+        public void AddBehaviour(Behaviour behaviour)
+        {
+            if (HasBehaviour(behaviour))
+                return;
+
+            if (!behaviours.ContainsKey(behaviour.Category))
+                behaviours[behaviour.Category] = new SimplePriorityQueue<Behaviour, int>();
+
+            behaviours[behaviour.Category].Enqueue(behaviour, behaviour.Priority);
+            behaviour.Owner = this;
+        }
+
+        /// <summary>
+        /// Adds multiple behaviours to the entity.
+        /// </summary>
+        /// <param name="behaviours">The behaviours to add.</param>
+        public void AddBehaviours(params Behaviour[] behaviours)
+        {
+            foreach (Behaviour behaviour in behaviours)
+            {
+                AddBehaviour(behaviour);
+            }
+        }
+
+        /// <summary>
+        /// Removes a behaviour from the entity.
+        /// </summary>
+        /// <param name="behaviour">The behaviour to remove.</param>
+        public void RemoveBehaviour(Behaviour behaviour)
+        {
+            if (!HasBehaviour(behaviour))
+                return;
+
+            behaviours[behaviour.Category].Remove(behaviour);
+        }
+
+        /// <summary>
+        /// Removes multiple behaviours from the entity.
+        /// </summary>
+        /// <param name="behaviours">The behaviours to remove.</param>
+        public void RemoveBehaviours(params Behaviour[] behaviours)
+        {
+            foreach (Behaviour behaviour in behaviours)
+            {
+                RemoveBehaviour(behaviour);
+            }
+        }
+
+        /// <summary>
+        /// Checks if the entity has a behaviour.
+        /// </summary>
+        /// <param name="behaviour">The behaviour to check.</param>
+        /// <returns>True if the entity has the behaviour, false otherwise.</returns> 
+        public bool HasBehaviour(Behaviour behaviour)
+        {
+            return behaviours.ContainsKey(behaviour.Category) && behaviours[behaviour.Category].Contains(behaviour);
+        }
+
+        /// <summary>
+        /// Gets a behaviour of type T from the entity.
+        /// </summary>
+        /// <typeparam name="T">The type of behaviour to get.</typeparam>
+        /// <returns>The behaviour of type T, or null if it doesn't exist.</returns>
+        public T GetBehaviour<T>() where T : Behaviour
+        {
+            foreach (var category in behaviours.Values)
+            {
+                foreach (var behaviour in category)
+                {
+                    if (behaviour is T typedBehaviour)
+                    {
+                        return typedBehaviour;
+                    }
+                }
+            }
+            return null;
         }
 
         #endregion
@@ -204,27 +248,29 @@ namespace Relay
         /// </summary>
         /// <param name="ev">The event to handle.</param>
         /// <returns>True if the event was handled, false otherwise.</returns>
-        public bool HandleEvent(Event ev)
+        public void HandleEvent(Event ev)
         {
             // is the event for a specific entity?
             if (ev.HasTarget)
             {
                 if (ev.Target != this)
-                    return false;
+                    return;
             }
 
-            foreach (var component in components)
-            {
-                if (component.IsListening(ev.Type))
-                {
-                    bool continueHandleEvent = component.HandleEvent(ev);
+            var behavioursByCategory = behaviours.OrderBy(kvp => World.BehaviourCategoryOrder.IndexOf(kvp.Key));
 
-                    if (!continueHandleEvent)
-                        return false;
+            foreach (var group in behavioursByCategory)
+            {
+                foreach (var behaviour in group.Value)
+                {
+                    if (behaviour.IsListening(ev.Type))
+                    {
+                        var result = behaviour.HandleEvent(ev);
+                        if (result == BehaviourResult.Stop)
+                            return;
+                    }
                 }
             }
-
-            return true;
         }
 
         #endregion

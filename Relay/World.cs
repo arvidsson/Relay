@@ -14,6 +14,11 @@ namespace Relay
         GroupManager groups = new();
 
         /// <summary>
+        /// The order of categories - behaviours with lower index will be processed first.
+        /// </summary>
+        public List<string> BehaviourCategoryOrder { get; set; } = new() { "Default" };
+
+        /// <summary>
         /// Updates the world:
         /// - processing created and destroyed entites
         /// - firing a global "Tick" event
