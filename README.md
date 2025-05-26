@@ -1,6 +1,6 @@
 # Relay
 
-Relay is a lightweight Entity Component System (ECS) C# framework that provides a simple way to manage entities and their behaviors. It should probably be called an Entity Component Event framework instead, since components contain both data and logic so there are no systems per se. It's a farily naive implementation, but hopefully a good starting point for implementing specific needs.
+Relay is a lightweight Entity Component System (ECS) C# framework that provides a simple way to manage entities and their behaviors. It should probably be called an Entity Component Behaviour Event (ECBE) framework instead, since there are no systems per se but rather behaviours (the logic that usually are in systems) are part of an entity and events are used to communicate between behavious and entities (more akin to the [actor model](https://en.wikipedia.org/wiki/Actor_model)). It's a farily naive implementation, but hopefully a good starting point for implementing more optimized and specific needs.
 
 Based on [Brian Bucklew's talk about ECS and data-driven engines](https://www.youtube.com/watch?v=U03XXzcThGU).
 
